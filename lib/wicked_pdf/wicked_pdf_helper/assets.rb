@@ -6,6 +6,15 @@ class WickedPdf
   module WickedPdfHelper
     module Assets
       ASSET_URL_REGEX = /url\(['"]?([^'"]+?)['"]?\)/
+      AssetStruct = Struct.new(:asset, :filename) do
+        def source
+          asset.respond_to?(:source) ? source.source : asset
+        end
+
+        def to_s
+          asset.to_s
+        end
+      end
 
       def wicked_pdf_asset_base64(path)
         asset = find_asset(path)
@@ -108,6 +117,11 @@ class WickedPdf
       def find_asset(path)
         if Rails.application.assets.respond_to?(:find_asset)
           Rails.application.assets.find_asset(path, :base_path => Rails.application.root.to_s)
+        elsif Rails.application.respond_to?(:assets_manifest) && Rails.application.assets_manifest.respond_to?(:find_sources)
+          asset = Rails.application.assets_manifest.find_sources(path, :base_path => Rails.application.root.to_s).first
+          if asset
+            AssetStruct.new(asset, "#{Rails.application.assets_manifest.dir}/#{Rails.application.assets_manifest.assets[path]}")
+          end
         else
           Sprockets::Railtie.build_environment(Rails.application).find_asset(path, :base_path => Rails.application.root.to_s)
         end
